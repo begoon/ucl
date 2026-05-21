@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xxd UCL.COM)",
+      "Bash(xxd UCL-SRC.COM)",
+      "Bash(./decode)",
+      "Read(//private/tmp/ucl_check/**)",
+      "Bash(xxd UCL-DEC.COM)",
+      "Bash(md5 UCL-DEC.COM UCL.COM /Users/alexander/Downloads/ucl-re/dos/UCL-SRC.COM)",
+      "Bash(cp /Users/alexander/Downloads/ucl-re/dos/UNP.EXE .)",
+      "Bash(cp UCL-DEC.COM UCLDEC.COM)",
+      "Bash(cp UCL.COM UCLORG.COM)"
+    ]
+  }
+}
