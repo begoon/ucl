@@ -2,7 +2,7 @@ set shell := ["bash", "-euo", "pipefail", "-c"]
 
 ASM     := "UCL-PLAIN.asm"
 OUT     := "build/UCL-PLAIN.COM"
-ORIG    := "original.bin"
+ORIG    := "UCL-expected.bin"
 
 default: check
 

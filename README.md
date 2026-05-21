@@ -11,9 +11,9 @@ of the music.
 ```text
 ucl-re/
 ├── README.md             ← this file (project documentation)
-├── original.bin          ← canonical copy of UCL-PLAIN.COM (round-trip oracle)
+├── UCL-expected.bin      ← canonical copy of UCL-PLAIN.COM (round-trip oracle)
 ├── UCL-PLAIN.asm         ← hand-curated NASM source that reassembles
-│                           byte-for-byte against original.bin
+│                           byte-for-byte against UCL-expected.bin
 ├── gen_baseline.py       ← emits an all-`db` baseline .asm from the binary
 ├── promote_code.py       ← converts ndisasm slices into the labeled,
 │                           byte-exact form used in UCL-PLAIN.asm
@@ -40,7 +40,7 @@ ucl-re/
 ## Quick start
 
 ```sh
-just check          # reassemble UCL-PLAIN.asm with nasm and cmp vs original.bin
+just check          # reassemble UCL-PLAIN.asm with nasm and cmp vs UCL-expected.bin
 just diff           # unified hex diff if check fails
 just bytes-different
 just first-diffs 20
@@ -423,7 +423,7 @@ sound-related iterations.
 ## Round-trip self-check
 
 `UCL-PLAIN.asm` is hand-curated so that `nasm -f bin` produces an output
-that is byte-identical to `original.bin`. To guarantee that despite
+that is byte-identical to `UCL-expected.bin`. To guarantee that despite
 NASM-vs-TASM encoding ambiguities (`mov ah, al` can be encoded as either
 `8A E0` or `88 C4`; ALU reg-reg ops similarly; `shl r, 1` has an implicit
 form), every instruction is emitted as a literal `db` of its actual
@@ -433,7 +433,7 @@ verbatim *and* is navigable.
 
 - `python3 promote_code.py` re-runs the ndisasm-to-`db` promotion for
   the code range `0x100 – 0x660`.
-- `python3 gen_baseline.py original.bin UCL-PLAIN.asm` blows the file away
+- `python3 gen_baseline.py UCL-expected.bin UCL-PLAIN.asm` blows the file away
   back to all-`db` (use when starting a fresh annotation pass).
 - `just check` is the green-light: it builds and `cmp`s.
 
