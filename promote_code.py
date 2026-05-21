@@ -12,8 +12,8 @@ import re
 import pathlib
 
 HERE        = pathlib.Path(__file__).resolve().parent
-NDISASM_OUT = HERE / "initial" / "UCL-SRC.asm"
-ASM_PATH    = HERE / "UCL-SRC.asm"
+NDISASM_OUT = HERE / "initial" / "UCL-PLAIN.asm"
+ASM_PATH    = HERE / "UCL-PLAIN.asm"
 
 CODE_START = 0x100
 CODE_END   = 0x661   # exclusive
@@ -73,7 +73,7 @@ for addr, bytes_, mn, operands in insns:
 
 code_block = "\n".join(emitted) + "\n"
 
-# --- pass 3: splice into UCL-SRC.asm ---
+# --- pass 3: splice into UCL-PLAIN.asm ---
 asm = ASM_PATH.read_text().splitlines()
 db_re = re.compile(r"^\s*db .*; ([0-9a-f]{4})\s*$")
 first_idx = last_idx = None

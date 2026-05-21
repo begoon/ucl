@@ -1,4 +1,4 @@
-; UCL-SRC.COM round-trip-matching source
+; UCL-PLAIN.COM round-trip-matching source
 ; Generated baseline: every byte as `db`.
 ; Promote spans to real instructions incrementally.
 

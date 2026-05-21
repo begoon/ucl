@@ -6,7 +6,7 @@ import sys, pathlib
 bin_path = pathlib.Path(sys.argv[1])
 asm_path = pathlib.Path(sys.argv[2])
 data = bin_path.read_bytes()
-out = ["; UCL-SRC.COM round-trip-matching source",
+out = ["; UCL-PLAIN.COM round-trip-matching source",
        "; Generated baseline: every byte as `db`.",
        "; Promote spans to real instructions incrementally.",
        "",

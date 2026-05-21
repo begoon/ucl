@@ -1,5 +1,5 @@
 // UCL Intr0 — JS/Canvas port of the 1996 DOS demo.
-// Port of the algorithms documented in ../UCL-SRC.analysis.md.
+// Port of the algorithms documented in ../README.md.
 //
 // Loads the original COM file, slices the data regions out of it, then
 // runs three render passes per frame:
@@ -622,7 +622,7 @@ class Demo {
 
 // ---------------------------------------------------------------- bootstrap
 async function main() {
-  const buf = await (await fetch('UCL-SRC.COM')).arrayBuffer();
+  const buf = await (await fetch('UCL-PLAIN.COM')).arrayBuffer();
   const mem = new Uint8Array(buf);
   if (mem.length !== ORIG_BYTES) {
     console.warn(`unexpected binary size ${mem.length}, expected ${ORIG_BYTES}`);

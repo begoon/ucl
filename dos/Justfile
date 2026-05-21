@@ -4,7 +4,7 @@ BUILD := "build"
 
 default: check
 
-[doc("Verify UCL-SRC.COM = UNP(decode.py(UCL.COM)) — byte-for-byte")]
+[doc("Verify UCL-PLAIN.COM = UNP(decode.py(UCL.COM)) — byte-for-byte")]
 check:
     rm -rf {{BUILD}}
     mkdir -p {{BUILD}}
@@ -18,8 +18,8 @@ check:
     @echo "--- UNP.LOG ---"
     @cat {{BUILD}}/UNP.LOG
     @echo "---"
-    cmp {{BUILD}}/UCL-OUT.COM UCL-SRC.COM \
-        && echo "OK  UNP(decode.py(UCL.COM)) == UCL-SRC.COM ($(wc -c < UCL-SRC.COM) bytes)"
+    cmp {{BUILD}}/UCL-OUT.COM UCL-PLAIN.COM \
+        && echo "OK  UNP(decode.py(UCL.COM)) == UCL-PLAIN.COM ($(wc -c < UCL-PLAIN.COM) bytes)"
 
 [doc("Remove build artefacts")]
 clean:

@@ -3,7 +3,7 @@
 
 Reads ``UCL.COM`` from the current directory and writes ``UCL-DEC.COM``.
 The resulting file is the same size; it is the decrypted self-extractor that
-UNP.EXE can then unpack into UCL-SRC.COM.
+UNP.EXE can then unpack into UCL-PLAIN.COM.
 """
 
 from pathlib import Path

@@ -1,7 +1,7 @@
 set shell := ["bash", "-euo", "pipefail", "-c"]
 
-ASM     := "UCL-SRC.asm"
-OUT     := "build/UCL-SRC.COM"
+ASM     := "UCL-PLAIN.asm"
+OUT     := "build/UCL-PLAIN.COM"
 ORIG    := "original.bin"
 
 default: check

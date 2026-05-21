@@ -1,6 +1,6 @@
 # UCL Intr0 — reverse engineering and JS port
 
-Reverse engineering of `UCL-SRC.COM`, a 5798-byte 16-bit DOS COM-file demo
+Reverse engineering of `UCL-PLAIN.COM`, a 5798-byte 16-bit DOS COM-file demo
 released 1996-03-03 by **SkullCODEr / United Crackers League**, plus a
 browser reimplementation that loads the original binary, slices the data
 regions out of it at runtime, and reproduces the visuals + an approximation
@@ -11,36 +11,36 @@ of the music.
 ```text
 ucl-re/
 ├── README.md             ← this file (project documentation)
-├── original.bin          ← canonical copy of UCL-SRC.COM (round-trip oracle)
-├── UCL-SRC.asm           ← hand-curated NASM source that reassembles
+├── original.bin          ← canonical copy of UCL-PLAIN.COM (round-trip oracle)
+├── UCL-PLAIN.asm         ← hand-curated NASM source that reassembles
 │                           byte-for-byte against original.bin
 ├── gen_baseline.py       ← emits an all-`db` baseline .asm from the binary
 ├── promote_code.py       ← converts ndisasm slices into the labeled,
-│                           byte-exact form used in UCL-SRC.asm
+│                           byte-exact form used in UCL-PLAIN.asm
 ├── Justfile              ← `just check` / `just diff` / `just serve` / ...
 │
 ├── initial/              ← starting point of the RE effort
-│   ├── UCL-SRC.COM           the unwrapped binary
-│   └── UCL-SRC.asm           raw ndisasm output for the full file
+│   ├── UCL-PLAIN.COM         the unwrapped binary
+│   └── UCL-PLAIN.asm         raw ndisasm output for the full file
 │
 ├── dos/                  ← recovery toolchain
 │   ├── UCL.COM               the original PKLITE-packed, XOR-encrypted release
 │   ├── decode.c / decode.py  XOR/add decryption pass (Py port is byte-identical)
 │   ├── UNP.EXE               generic depacker that handles PKLITE
 │   ├── Justfile              `just check` runs the recovery in dosbox-x and
-│   │                         verifies UNP(decode(UCL.COM)) == UCL-SRC.COM
+│   │                         verifies UNP(decode(UCL.COM)) == UCL-PLAIN.COM
 │   └── README.md             documents the derivation chain
 │
 └── web/                  ← JS/Canvas port
     ├── index.html
     ├── demo.js
-    └── UCL-SRC.COM       fetched at runtime, all data sliced out of it
+    └── UCL-PLAIN.COM     fetched at runtime, all data sliced out of it
 ```
 
 ## Quick start
 
 ```sh
-just check          # reassemble UCL-SRC.asm with nasm and cmp vs original.bin
+just check          # reassemble UCL-PLAIN.asm with nasm and cmp vs original.bin
 just diff           # unified hex diff if check fails
 just bytes-different
 just first-diffs 20
@@ -376,7 +376,7 @@ freq_Hz = f_num * 49716 / 2^(20 - block_idx)
 
 ## JS port (`web/`)
 
-`web/demo.js` loads `UCL-SRC.COM` at runtime, slices every data region
+`web/demo.js` loads `UCL-PLAIN.COM` at runtime, slices every data region
 out of the same byte offsets documented above, and runs three render
 passes per frame into a `Uint8Array` framebuffer that is sampled through
 a 256-entry RGBA palette and uploaded via `ctx.putImageData`.
@@ -422,7 +422,7 @@ sound-related iterations.
 
 ## Round-trip self-check
 
-`UCL-SRC.asm` is hand-curated so that `nasm -f bin` produces an output
+`UCL-PLAIN.asm` is hand-curated so that `nasm -f bin` produces an output
 that is byte-identical to `original.bin`. To guarantee that despite
 NASM-vs-TASM encoding ambiguities (`mov ah, al` can be encoded as either
 `8A E0` or `88 C4`; ALU reg-reg ops similarly; `shl r, 1` has an implicit
@@ -433,7 +433,7 @@ verbatim *and* is navigable.
 
 - `python3 promote_code.py` re-runs the ndisasm-to-`db` promotion for
   the code range `0x100 – 0x660`.
-- `python3 gen_baseline.py original.bin UCL-SRC.asm` blows the file away
+- `python3 gen_baseline.py original.bin UCL-PLAIN.asm` blows the file away
   back to all-`db` (use when starting a fresh annotation pass).
 - `just check` is the green-light: it builds and `cmp`s.
 
