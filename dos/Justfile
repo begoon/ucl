@@ -1,0 +1,26 @@
+set shell := ["bash", "-euo", "pipefail", "-c"]
+
+BUILD := "build"
+
+default: check
+
+[doc("Verify UCL-SRC.COM = UNP(decode.py(UCL.COM)) — byte-for-byte")]
+check:
+    rm -rf {{BUILD}}
+    mkdir -p {{BUILD}}
+    cp UCL.COM UNP.EXE decode.py {{BUILD}}/
+    cd {{BUILD}} && python3 decode.py
+    dosbox-x -nogui -nopromptfolder -fastlaunch -exit \
+        -c "mount c {{justfile_directory()}}/{{BUILD}}" \
+        -c "c:" \
+        -c "UNP UCL-DEC.COM UCL-OUT.COM > UNP.LOG" \
+        -c "exit" > /dev/null 2>&1
+    @echo "--- UNP.LOG ---"
+    @cat {{BUILD}}/UNP.LOG
+    @echo "---"
+    cmp {{BUILD}}/UCL-OUT.COM UCL-SRC.COM \
+        && echo "OK  UNP(decode.py(UCL.COM)) == UCL-SRC.COM ($(wc -c < UCL-SRC.COM) bytes)"
+
+[doc("Remove build artefacts")]
+clean:
+    rm -rf {{BUILD}}
