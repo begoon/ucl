@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <title>UCL Intro — JS/Canvas port</title>
+        <style>
+            html,
+            body {
+                margin: 0;
+                background: #000;
+                color: #ddd;
+                font-family: monospace;
+                height: 100%;
+            }
+            body {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                gap: 1rem;
+            }
+            canvas#screen {
+                image-rendering: pixelated;
+                image-rendering: crisp-edges;
+                width: 960px; /* 320 * 3 */
+                height: 600px; /* 200 * 3 */
+                background: #000;
+                box-shadow: 0 0 60px #2a2a2a;
+            }
+            .bar {
+                display: flex;
+                gap: 1rem;
+                align-items: center;
+                font-size: 12px;
+                opacity: 0.7;
+            }
+            button {
+                background: #222;
+                color: #ddd;
+                border: 1px solid #444;
+                padding: 6px 14px;
+                cursor: pointer;
+                font-family: monospace;
+            }
+            button:hover {
+                background: #333;
+            }
+            button:disabled {
+                opacity: 0.5;
+                cursor: default;
+                animation: none;
+                box-shadow: none;
+                border-color: #444;
+            }
+            #start:not(:disabled) {
+                background: #2a3a55;
+                border-color: #7ab8ff;
+                color: #fff;
+                animation: pulse 1.4s ease-in-out infinite;
+            }
+            @keyframes pulse {
+                0%,
+                100% {
+                    box-shadow:
+                        0 0 0 0 rgba(122, 184, 255, 0.55),
+                        0 0 8px rgba(122, 184, 255, 0.4);
+                }
+                50% {
+                    box-shadow:
+                        0 0 0 6px rgba(122, 184, 255, 0),
+                        0 0 16px rgba(122, 184, 255, 0.7);
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <canvas id="screen" width="320" height="200"></canvas>
+        <div class="bar">
+            <span>-UCL- Intr0 by SkullC0DEr (1996) — JS/Canvas port</span>
+            <button id="start">Start</button>
+            <button id="reset" disabled>Reset</button>
+            <a href="./original/"><button type="button">Original</button></a>
+            <span id="fps"></span>
+        </div>
+        <audio id="audio" src="music.wav" preload="auto" loop></audio>
+        <script type="module" src="script.js"></script>
+    </body>
+</html>
