@@ -6,21 +6,25 @@ default: check
 
 [doc("Verify UCL-PLAIN.COM = UNP(decode.py(UCL.COM)) — byte-for-byte")]
 check:
-    rm -rf {{BUILD}}
-    mkdir -p {{BUILD}}
-    cp UCL.COM UNP.EXE decode.py {{BUILD}}/
-    cd {{BUILD}} && python3 decode.py
+    rm -rf {{ BUILD }}
+    mkdir -p {{ BUILD }}
+    cp UCL.COM UNP.EXE decode.py {{ BUILD }}/
+    cd {{ BUILD }} && python3 decode.py
     dosbox-x -nogui -nopromptfolder -fastlaunch -exit \
-        -c "mount c {{justfile_directory()}}/{{BUILD}}" \
+        -c "mount c {{ justfile_directory() }}/{{ BUILD }}" \
         -c "c:" \
-        -c "UNP UCL-DEC.COM UCL-OUT.COM > UNP.LOG" \
+        -c "UNP UCL-RAW.COM UCL-OUT.COM > UNP.LOG" \
         -c "exit" > /dev/null 2>&1
     @echo "--- UNP.LOG ---"
-    @cat {{BUILD}}/UNP.LOG
+    @cat {{ BUILD }}/UNP.LOG
     @echo "---"
-    cmp {{BUILD}}/UCL-OUT.COM UCL-PLAIN.COM \
+    cmp {{ BUILD }}/UCL-OUT.COM UCL-PLAIN.COM \
         && echo "OK  UNP(decode.py(UCL.COM)) == UCL-PLAIN.COM ($(wc -c < UCL-PLAIN.COM) bytes)"
+
+[doc("Capture a WAV of the demo running in DOSBox-X for A/B testing the JS port. Opens DOSBox-X visibly; click `Capture → Wave Output → Start` as soon as the window appears. Auto-exits after SECONDS (default 35).")]
+record-reference SECONDS="35":
+    python3 capture.py {{ SECONDS }}
 
 [doc("Remove build artefacts")]
 clean:
-    rm -rf {{BUILD}}
+    rm -rf {{ BUILD }}

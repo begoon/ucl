@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Python port of decode.c — strips the XOR/add encryption layer from UCL.COM.
 
-Reads ``UCL.COM`` from the current directory and writes ``UCL-DEC.COM``.
+Reads ``UCL.COM`` from the current directory and writes ``UCL-RAW.COM``.
 The resulting file is the same size; it is the decrypted self-extractor that
 UNP.EXE can then unpack into UCL-PLAIN.COM.
 """
@@ -49,7 +49,7 @@ def main() -> None:
         buf[si] = ch
         si += 1
 
-    Path("UCL-DEC.COM").write_bytes(bytes(buf[0x100 : 0x100 + sz]))
+    Path("UCL-RAW.COM").write_bytes(bytes(buf[0x100 : 0x100 + sz]))
 
 
 if __name__ == "__main__":

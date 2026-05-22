@@ -2,15 +2,18 @@
 #include <stdlib.h>
 #include <assert.h>
 
-int main() {
+int main()
+{
   unsigned char buf[30000];
   int sz = 0, i;
-  FILE* f = fopen("UCL.COM", "r+b");
+  FILE *f = fopen("UCL.COM", "r+b");
   assert(f != NULL);
-  while (!feof(f)) {
+  while (!feof(f))
+  {
     int read = fread(buf + sz + 0x100, 1, sizeof(buf) - sz - 0x100, f);
     assert(read != -1);
-    if (read == 0) break;
+    if (read == 0)
+      break;
     sz += read;
   }
   fclose(f);
@@ -23,7 +26,8 @@ int main() {
   int di = *(unsigned short *)&buf[jmp + 13];
   printf("CX = %04X, DI = %04X\n", cx, di);
   int si = 0x100;
-  for (i = 0; i < cx; ++i) {
+  for (i = 0; i < cx; ++i)
+  {
     unsigned char ch = buf[si++];
     unsigned char p = buf[di + (i & 0x0f)];
     ch ^= p;
@@ -31,7 +35,7 @@ int main() {
     ch = (ch + (dx & 0xff));
     buf[si - 1] = ch;
   }
-  f = fopen("UCL-DEC.COM", "w+b");
+  f = fopen("UCL-RAW.COM", "w+b");
   assert(f != NULL);
   assert(fwrite(buf + 0x100, sz + 0x000, 1, f) != sz);
   fclose(f);

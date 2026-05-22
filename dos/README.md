@@ -19,9 +19,9 @@ form from the encrypted/packed original.
 `UCL-PLAIN.COM` is a two-step derivative of `UCL.COM`:
 
 ```text
-UCL.COM  ──[ decode.c / decode.py ]──▶  UCL-DEC.COM  ──[ UNP.EXE ]──▶  UCL-PLAIN.COM
-         (XOR/add decryption,                       (PKLITE v1.50,
-          same size)                                 expands to 5798 bytes)
+UCL.COM  ──[ decode.c / decode.py ]──▶  UCL-RAW.COM  ──[ UNP.EXE ]──▶  UCL-PLAIN.COM
+             (XOR/add decryption,                       (PKLITE v1.50,
+              same size)                                 expands to 5798 bytes)
 ```
 
 UNP.EXE identifies the inner packer as **PKLITE V1.50** — i.e. `UCL.COM` is a
@@ -39,7 +39,7 @@ PKLITE-compressed COM wrapped in a custom XOR/add encryption layer.
   followed by a UCL/LZ-style depacker) become visible to UNP.
 
 The same identifying strings — `-UCL- Intr0 by SkullC0DEr`, `Preparing
-data...`, `UNITED CRACKERS LEAGUE` — appear in both `UCL-DEC.COM` (scattered
+data...`, `UNITED CRACKERS LEAGUE` — appear in both `UCL-RAW.COM` (scattered
 inside the packed payload) and `UCL-PLAIN.COM` (cleanly laid out), confirming
 they are the same program at different stages of unwrapping.
 
@@ -63,7 +63,7 @@ segment), then:
    ```
 
 4. Patches the leading JMP back to the saved entry word and writes the result
-   as `UCL-DEC.COM` (same size, 3966 bytes).
+   as `UCL-RAW.COM` (same size, 3966 bytes).
 
 The output is still a packed self-extractor — it has a normal entry point
 (`MOV AX,0900; INT 21h` print stub at file offset `0x80`) and a recognisable
@@ -85,7 +85,7 @@ Python path:
 python3 decode.py
 ```
 
-Both emit the same diagnostics and produce a byte-identical `UCL-DEC.COM`:
+Both emit the same diagnostics and produce a byte-identical `UCL-RAW.COM`:
 
 ```text
 Read 0F7E (3966) bytes
@@ -96,7 +96,7 @@ CX = 0F4B, DI = 106E
 ### Step 2 — unpack via UNP.EXE under DOSBox-X
 
 ```bash
-dosbox-x -c "mount c ." -c "c:" -c "UNP UCL-DEC.COM UCL-PLAIN.COM" -c "exit"
+dosbox-x -c "mount c ." -c "c:" -c "UNP UCL-RAW.COM UCL-PLAIN.COM" -c "exit"
 ```
 
 The resulting `UCL-PLAIN.COM` (5798 bytes) is the plain binary suitable for
