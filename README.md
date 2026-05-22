@@ -9,7 +9,7 @@ regions out of it at runtime, and reproduces the visuals. Music is played
 back from a pre-recorded WAV capture of the original DOSBox playback
 rather than re-synthesised in the browser — see *Music* below.
 
-**Play online:** <https://begoon.github.com/ucl>
+**Play online:** <https://begoon.github.io/ucl>
 
 ## Copyright
 
