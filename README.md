@@ -1,10 +1,30 @@
 # UCL Intr0 — reverse engineering and JS port
 
+![UCL Intro screenshot](screenshot.png)
+
 Reverse engineering of `UCL-PLAIN.COM`, a 5798-byte 16-bit DOS COM-file demo
 released 1996-03-03 by **SkullCODEr / United Crackers League**, plus a
 browser reimplementation that loads the original binary, slices the data
-regions out of it at runtime, and reproduces the visuals + an approximation
-of the music.
+regions out of it at runtime, and reproduces the visuals. Music is played
+back from a pre-recorded WAV capture of the original DOSBox playback
+rather than re-synthesised in the browser — see *Music* below.
+
+**Play online:** <https://begoon.github.com/ucl>
+
+## Copyright
+
+The original 1996 work `UCL-PLAIN.COM` — including the executable code,
+music data, scroll-text greets and creative content — is the work of
+**SkullCODEr / United Crackers League** and all rights to that work
+remain with the original authors. The binary is preserved verbatim in
+this repository (`UCL-expected.bin`, also at `docs/UCL-PLAIN.COM`) for
+historical and educational purposes; nothing about its content has
+been altered.
+
+The new material in this repository — the disassembly annotations
+(`UCL-PLAIN.asm`), the documentation in this README, and the
+JS/Canvas port under `docs/` — is released under the **MIT licence**
+(see [`LICENSE`](LICENSE)).
 
 ## Repository layout
 
@@ -17,36 +37,105 @@ ucl-re/
 ├── gen_baseline.py       ← emits an all-`db` baseline .asm from the binary
 ├── promote_code.py       ← converts ndisasm slices into the labeled,
 │                           byte-exact form used in UCL-PLAIN.asm
-├── Justfile              ← `just check` / `just diff` / `just serve` / ...
+├── Justfile              ← `just check` / `just diff` / `just serve` / …
 │
 ├── initial/              ← starting point of the RE effort
 │   ├── UCL-PLAIN.COM         the unwrapped binary
 │   └── UCL-PLAIN.asm         raw ndisasm output for the full file
 │
-├── dos/                  ← recovery toolchain
+├── dos/                  ← recovery + A/B-test toolchain
 │   ├── UCL.COM               the original PKLITE-packed, XOR-encrypted release
 │   ├── decode.c / decode.py  XOR/add decryption pass (Py port is byte-identical)
 │   ├── UNP.EXE               generic depacker that handles PKLITE
-│   ├── Justfile              `just check` runs the recovery in dosbox-x and
-│   │                         verifies UNP(decode(UCL.COM)) == UCL-PLAIN.COM
+│   ├── capture.py            opens UCL-PLAIN.COM in DOSBox-X for a WAV recording
+│   ├── capture.conf          DOSBox-X config used by capture.py
+│   ├── analyze.py            spectral / dynamics analysis for A/B testing
+│   ├── Justfile              `just check`, `just record-reference`
 │   └── README.md             documents the derivation chain
 │
-└── web/                  ← JS/Canvas port
-    ├── index.html
-    ├── demo.js
-    └── UCL-PLAIN.COM     fetched at runtime, all data sliced out of it
+└── docs/                  ← JS/Canvas port
+    ├── index.html            UI shell with Start/Reset/Original buttons
+    ├── script.js             rendering port (no music synth)
+    ├── UCL-PLAIN.COM         fetched at runtime; all data sliced out of it
+    ├── music.wav             pre-recorded one-loop capture of the original
+    │                         music, played back via <audio loop>
+    └── original/             host folder for the original DOS binary
+                              (DOSBox/js-dos handoff target)
 ```
 
 ## Quick start
 
 ```sh
+# Round-trip check: reassemble disassembly, cmp against the binary
 just check          # reassemble UCL-PLAIN.asm with nasm and cmp vs UCL-expected.bin
 just diff           # unified hex diff if check fails
 just bytes-different
 just first-diffs 20
 
-just serve          # python3 -m http.server, then open http://localhost:8000/web/
+# Web port
+just serve          # python3 -m http.server, then open http://localhost:8000/docs/
 ```
+
+## How `UCL-PLAIN.COM` was derived from `UCL.COM`
+
+The release artifact in the wild is `UCL.COM` (3966 bytes) — a
+PKLITE-compressed COM wrapped in a custom XOR/add encryption layer.
+The disassembly target `UCL-PLAIN.COM` (5798 bytes) is what falls out
+after both layers are peeled off:
+
+```text
+UCL.COM  ──[ decode.c / decode.py ]──▶  UCL-RAW.COM  ──[ UNP.EXE ]──▶  UCL-PLAIN.COM
+            (XOR/add decryption,                       (PKLITE V1.50
+             same size, 3966 bytes)                     self-extractor,
+                                                        expands to 5798 bytes)
+```
+
+### Stage 1 — XOR/add decryption (`decode.c` / `decode.py`)
+
+`UCL.COM` begins with a near `JMP` to a small decryption stub near
+the end of the file. The decoder mirrors what the stub would do at
+runtime: it places the file at COM offset `0x100`, reads the `JMP`
+target to find the stub, then reads three values out of the stub:
+
+- `CX = 0x0F4B` — bytes to decrypt
+- `DI = 0x106E` — pointer to a 16-byte XOR pad
+- (entry-point word, restored at the end)
+
+It then walks `SI = 0x100 .. 0x100+CX-1`:
+
+```text
+buf[SI] = (buf[SI] XOR pad[i AND 0x0F]) + (SI AND 0xFF)
+```
+
+— a position-dependent XOR keyed off a 16-byte pad, with a per-byte
+additive bias derived from the low byte of the file offset. The
+output (`UCL-RAW.COM`, same 3966 bytes) is still a packed
+self-extractor, but its leading bytes now look like a normal COM:
+the print stub `mov ax,0x0900 / int 21h` at offset `0x80`, followed
+by the PKLITE depacker body.
+
+### Stage 2 — PKLITE depack (`UNP.EXE`)
+
+UNP identifies the inner packer as **PKLITE V1.50** and expands the
+payload to **5798 bytes** — the plain binary `UCL-PLAIN.COM` that
+the rest of this README disassembles. The same identifying strings
+(`-UCL- Intr0 by SkullC0DEr`, `Preparing data...`, `UNITED CRACKERS
+LEAGUE`) appear in both files, confirming they are the same program
+at different unwrap stages.
+
+### Why this exact order
+
+- `decode.c` is hard-wired to `UCL.COM`'s leading `JMP` stub. It
+  dereferences the JMP target to find the decryption parameters, so
+  it can only be applied to the encrypted form.
+- `UNP.EXE` matches packers by signature. `UCL.COM`'s opening bytes
+  are XOR-encrypted, so UNP cannot identify the inner packer until
+  after stage 1 reveals the PKLITE signature.
+
+Full reproduction (with byte-identical output assertions) lives in
+[`dos/README.md`](dos/README.md) — `just check` from inside `dos/`
+runs both stages in a sandbox and `cmp`s the result against the
+shipped `UCL-PLAIN.COM`.
 
 ## What the demo does
 
@@ -65,6 +154,30 @@ just serve          # python3 -m http.server, then open http://localhost:8000/we
 4. Steps an AdLib / OPL2 song driver from a hooked timer ISR (`int 08h`) at
    ~9 Hz: 9 independent byte streams, each a `note | duration` sequence.
 5. Exits on `ESC` with a brief white-out + palette-walk fade.
+
+## Greets dump (`fading-text.txt`)
+
+`fading-text.txt` is a plain-text dump of the demo's scroll-text
+region — the credits and greets that the original scrolls along the
+perspective floor. It's an extract of bytes `0x0C86 – 0x1485` of
+`UCL-PLAIN.COM`, with the two in-band control bytes stripped/translated:
+
+- `0x7E` (`~`) — colour-bank toggle, deleted entirely.
+- `0x7F` — line-break, replaced with `\n`.
+
+The remaining `{ | } + * %` characters are *not* punctuation: they
+are the source-side encoding of graphical block tiles in the demo's
+8×8 font atlas, which is what draws the closing "UCL" bracket art
+at the end of the message.
+
+The file is regenerated with:
+
+```sh
+just fading-text       # writes fading-text.txt at repo root
+```
+
+A copy lives under `dos/fading-text.txt` as a historical reference
+alongside the `UCL.COM` derivation toolchain.
 
 ## Memory map of the binary
 
@@ -304,12 +417,107 @@ mode (`int 10h ax=0x03`).
 
 ### Init (`0x597`)
 
-Writes a hand-crafted patch program to OPL2 ports `0x388 / 0x389`:
-operator characteristics (`0x20+op`), rhythm/AM/VIB flags (`0xBD`),
-level / ADSR / waveform per operator (`0x40+op`, `0x60+op`, `0x80+op`,
-`0xE0+op`), F-number low/high zeroed (`0xA0+ch`, `0xB0+ch`), and
-feedback/connection (`0xC0+ch`). The 7-NOP delay (`call 0x64C` with
-`cx=7` then `cl=0x30`) is the standard OPL2 write-status latency wait.
+Globals first: `reg 0x01 = 0x20` (WSE on, enables non-sine waveforms),
+`reg 0x08 = 0x00` (NTS off), `reg 0xBD = 0x00` (rhythm mode off). Then
+9 channels are programmed by walking two parallel tables:
+
+- **`0x68D`** — 9 word pointers, one per channel, into the patch-data
+  pool at `0x69F – 0x6EB`. Channels 2/3 share a pointer, as do 5/6 —
+  there are 7 unique patches.
+- **`0x684`** — 9 bytes, the operator-0 register-block base for each
+  channel: `20 21 22 28 29 2A 30 31 32`. These are `0x20 + op0_offset`
+  where `op0_offset` is the standard OPL2 non-contiguous operator
+  index (channels 0-2 use offsets 0-2, channels 3-5 use 8-A, channels
+  6-8 use 10-12).
+
+For each channel the asm inner loop reads **6 bytes** from the patch
+and writes them to specific registers:
+
+| Patch byte | OPL2 register      | Meaning                                |
+|-----------:|--------------------|----------------------------------------|
+| 0          | `0x20 + op0`       | MULT, KSR, EGT, VIB, AM                |
+| 1          | `0x40 + op0`       | KSL (bits 6-7), TL (bits 0-5)          |
+| 2          | `0x60 + op0`       | AR (bits 4-7), DR (bits 0-3)           |
+| 3          | `0x80 + op0`       | SL (bits 4-7), RR (bits 0-3)           |
+| 4          | `0xE0 + op0`       | WS — waveform select (bits 0-1)        |
+| 5          | `0xC0 + ch`        | FB (bits 1-3), CNT (bit 0) — channel   |
+| 6-10       | *(unused)*         | each patch is 11 bytes; bytes 6-10 are |
+|            |                    | never read by the asm                  |
+
+Only **operator 0** of each channel is configured. Operator 1 (the
+carrier) stays at the OPL2 hardware reset state (TL=0, all rates 0,
+MULT=0, WS=0). This is intentional: for `CNT=1` (AM) channels the op0
+output alone reaches the mix; for `CNT=0` (FM) channels the
+"defaulted" op1 acts as the carrier modulated by op0.
+
+A `xor ax,ax; call 0x650` after each channel's patch sequence sends a
+key-off (zeros to `A0+ch` and `B0+ch`).
+
+The 7-NOP delay (`call 0x64C` with `cx=7`, then `cl=0x30`) is the
+standard OPL2 write-status latency wait.
+
+### Per-channel patch summary
+
+Hand-decoded from the patch pool at `0x69F – 0x6EB`. AR=0 entries are
+called out because textbook OPL2 silences them but real chips
+(and DOSBox-X's default emulator `dbopl`) *don't* — see the next subsection.
+
+| Patch | Channels | MULT | TL  | AR | DR | SL | RR | WS  | FB | CNT |
+|------:|----------|------|----:|---:|---:|---:|---:|-----|---:|----:|
+| P0    | ch0      | 0×   | 0   | **0** | 8  | 8  | 0  | 1 half | 2 | 1 AM |
+| P1    | ch1      | 0×   | 16  | **0** | 8  | 8  | 0  | 1 half | 2 | 1 AM |
+| P2    | ch2, ch3 | 1×   | 0   | 8  | 7  | 8  | 0  | 3 quart | 7 | 1 AM |
+| P3    | ch4      | 1×   | 0   | 8  | 7  | 8  | 0  | 3 quart | 7 | 1 AM |
+| P4    | ch5, ch6 | 0×   | 0   | **0** | 0  | 0  | 13 | 1 half | 0 | **0 FM** |
+| P5    | ch7      | 1×   | 0   | 8  | 7  | 8  | 0  | 3 quart | 7 | 1 AM |
+| P6    | ch8      | 1×   | 0   | 1  | 2  | 8  | 8  | 1 half | 2 | 1 AM |
+
+`KSL` values: P0=1, P1=0, P2=1, **P3=3** (steepest), P4=2, P5=2, P6=0.
+
+### Per-channel role (from song-stream and spectral analysis)
+
+Looking at the first bytes of each channel's stream at `0x710 – 0xABF`:
+
+| Ch | First bytes      | Initial behaviour                            | Role               |
+|---:|------------------|----------------------------------------------|--------------------|
+| 0  | `C0 22 …`        | silent for 64 ticks, then notes              | sub-bass (MULT=0.5)|
+| 1  | `FC 20 …`        | silent for ~124 ticks                        | sub-bass           |
+| 2  | `C0 42 …`        | silent for 64 ticks                          | mid (quarter-sine) |
+| 3  | `C0 42 …`        | silent for 64 ticks                          | mid                |
+| 4  | `FF 81 …`        | silent for ~127 ticks                        | **bass voice**     |
+| 5  | `32 9F …`        | note immediately (`0x32` = D, block 3)       | FM-bass            |
+| 6  | `42 FF …`        | note immediately                             | FM                 |
+| 7  | `40 81 …`        | note immediately (lead voice's first hit)    | lead (mid)         |
+| 8  | `FF FF …`        | silent for ~127 ticks                        | mid                |
+
+ch4's patch P3 is the key bass voice. Its song alternates between note
+byte `0x32` (D3 ≈ 154 Hz) and `0x54` (E5 ≈ 695 Hz); with `KSL=3` the
+E5 notes get attenuated ~12-24 dB so D3 is what dominates the mix.
+Reference recording confirms: the dominant FFT peak across 4 of 5
+timeline slices is **154 Hz**.
+
+### The AR=0 hardware quirk
+
+The demo's patches P0, P1, P4 all set `AR=0` on operator 0. By the
+documented OPL2 envelope rules an `AR=0` operator stays at silence
+forever — the attack rate is zero, so the envelope never leaves its
+reset value. Four channels would be silent.
+
+But the reference WAV (a DOSBox-X capture made with its default
+emulator `dbopl`) shows **9.7% sub-bass and a dominant 154 Hz peak
+from the very start** — energy that can only come from those AR=0
+channels. So real chips, and the emulators that match them, treat
+`AR=0` as **"no attack ramp — jump straight to peak"** rather than
+"never attack". The demo's author relied on this behaviour: their
+sub-bass voices are written *expecting* `AR=0` to produce sound.
+
+Practical consequence in the JS port:
+
+- Hand-rolled emulators implementing the textbook rule are silent
+  on those channels (verified by analyzer: 0.6% sub-bass vs the
+  reference's 9.7%).
+- Real-hardware-faithful emulators (Nuked-OPL3, dbopl) handle this
+  correctly out of the box.
 
 ### Per-tick step (`0x5DB`)
 
@@ -360,11 +568,11 @@ iret
 9 byte streams. Per-channel current and rewind pointers live as
 `(cur, rew)` word pairs at `0x6EC – 0x70F`. Stream bytes:
 
-| Byte                 | Meaning                                          |
-|----------------------|--------------------------------------------------|
-| `0x00`               | end-of-stream → `cur ← rew`                       |
-| `0x80 – 0xFF`        | duration override; new counter = `byte - 0x81`    |
-| `0x01 – 0x7F`        | note-on: low nibble = chromatic step (0..11), upper nibble = block bits |
+| Byte          | Meaning                                                                 |
+|---------------|-------------------------------------------------------------------------|
+| `0x00`        | end-of-stream → `cur ← rew`                                             |
+| `0x80 – 0xFF` | duration override; new counter = `byte - 0x81`                          |
+| `0x01 – 0x7F` | note-on: low nibble = chromatic step (0..11), upper nibble = block bits |
 
 Frequency in Hz from the OPL2 register pair:
 
@@ -374,12 +582,14 @@ block_idx = ((note_table[note].hi + block) >> 2) & 0x07
 freq_Hz = f_num * 49716 / 2^(20 - block_idx)
 ```
 
-## JS port (`web/`)
+## JS port (`docs/` — served via GitHub Pages)
 
-`web/demo.js` loads `UCL-PLAIN.COM` at runtime, slices every data region
-out of the same byte offsets documented above, and runs three render
-passes per frame into a `Uint8Array` framebuffer that is sampled through
-a 256-entry RGBA palette and uploaded via `ctx.putImageData`.
+### Rendering
+
+`docs/script.js` loads `UCL-PLAIN.COM` at runtime, slices every data
+region out of the same byte offsets documented above, and runs three
+render passes per frame into a `Uint8Array` framebuffer that is sampled
+through a 256-entry RGBA palette and uploaded via `ctx.putImageData`.
 
 Implemented faithfully:
 
@@ -393,6 +603,10 @@ Implemented faithfully:
 - Perspective floor LUT with per-line fixed-point texture-x step.
 - `0x7F`-separated text pre-rasterisation into a tall bitmap; row sampled
   per scan-line; per-line backdrop gradient.
+- Scroll-text read pointer starts at `0xC86` (initial `[0xAE5]` in the
+  binary), *not* at `0xC83` — the three preceding bytes (`..$`) are the
+  trailing tail of the DOS "Preparing data…" print-string and are not
+  part of the scroll content.
 
 Not (yet) replicated:
 
@@ -400,25 +614,62 @@ Not (yet) replicated:
 - The full asm-side scroll-text regen with `~` colour-bank toggle (the
   bank toggle exists in the JS but is approximated).
 
-### Music: Web-Audio approximation (in progress)
+### Music
 
-The OPL2 song driver is ported byte-for-byte to JS (9 streams, same
-note/duration grammar, same F-number → Hz formula). The synth side is a
-**Web Audio approximation** — each channel is a 2-osc FM voice
-(`OscillatorNode` → `GainNode` → carrier `frequency`) with sine
-modulator, triangle carrier, frequency-dependent modulation index,
-plateau-then-release envelope, and a master low-shelf + peaking-band EQ
-plus a `DynamicsCompressorNode` limiter to prevent clipping when several
-bass voices overlap.
+The JS port does **not** synthesise the OPL2 song any more. Earlier
+revisions of this repo wired up a real chip emulator (Nuked-OPL3
+compiled to WASM, driven by a faithful reproduction of the asm's
+`(register, value)` byte stream) and the spectral *shape* of the
+output landed within ~2 pp of a DOSBox-X reference recording on every
+band — but specific per-slice FFT peaks still drifted, the perceptual
+A/B felt off, and the result wasn't worth shipping. Instead, the port
+plays back a clean one-loop capture of the original demo's audio
+(`docs/music.wav`, see *How to capture music on Mac* below) via an
+`<audio loop>` element gated on the same user-gesture that starts the
+visual loop. Track length is **49.3 s** — a single song loop, with
+leading silence and the start of the next loop trimmed off so the
+`<audio loop>` attribute tiles seamlessly. See the *Music driver*
+section above for the asm-side details that are no longer
+re-implemented at runtime.
 
-The song-driver logic is decoupled from the synth backend — if you want
-the period-correct AdLib growl, swap `playNote` in `MusicPlayer` for a
-real OPL2 emulator (e.g. `opl3.js`) and feed it the same register writes
-the asm at `0x650` issues; the streaming and F-num logic doesn't need
-to change.
+## How to capture music on Mac
 
-This part of the port is still being tuned — see commit history for the
-sound-related iterations.
+Capturing the audio of a DOS demo running in DOSBox cleanly (no mic,
+no system noise, bit-perfect) on macOS uses the [BlackHole][bh]
+virtual audio device to route the demo's output into Audacity.
+
+[bh]: https://existential.audio/blackhole/
+
+### 1. Install BlackHole
+
+```sh
+brew install blackhole-2ch
+```
+
+Reboot afterwards so the new audio driver registers with CoreAudio.
+
+### 2. Create a Multi-Output device
+
+Open *Applications → Utilities → Audio MIDI Setup*, then:
+
+- Click the **+** button bottom-left.
+- Select *Create Multi-Output Device*.
+- Check both your usual headphones / speakers **and** *BlackHole 2ch*.
+
+### 3. Route the app audio into it
+
+*System Settings → Sound → Output* → select the **Multi-Output
+Device** you just created. You still hear audio through your usual
+output, and BlackHole receives the same digital stream in parallel.
+
+### 4. Record it
+
+Install Audacity (<https://www.audacityteam.org/>), open it, and in
+the top input-source dropdown pick **BlackHole 2ch**. Press *Record*,
+launch the demo (`dos/UCL.COM` in DOSBox-X), let it play one full
+loop, stop, and export as WAV.
+
+No mic, no QuickTime — bit-perfect internal capture.
 
 ## Round-trip self-check
 
